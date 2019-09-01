@@ -24,13 +24,18 @@ public class UserService {
 		users.add(new User(2, "A", "HR", 32) );
 		users.add(new User(3, "D", "HR", 34) );
 		users.add(new User(4, "X", "IT", 35) );
-		userRepository.saveAll(users);
+		userRepository.save(users);
 		
 	}
 	
 	public List<User> getAllUsers()
 	{
 		return userRepository.findAll();
+	}
+	
+	public void saveUser(User user)
+	{
+		userRepository.save(user);
 	}
 
 }
