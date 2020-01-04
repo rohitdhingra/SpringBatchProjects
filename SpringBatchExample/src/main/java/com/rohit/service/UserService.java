@@ -1,6 +1,7 @@
 package com.rohit.service;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 import javax.annotation.PostConstruct;
@@ -20,10 +21,10 @@ public class UserService {
 	public void initDB()
 	{
 		List<User> users = new ArrayList<>();
-		users.add(new User(1, "R", "IT", 32) );
-		users.add(new User(2, "A", "HR", 32) );
-		users.add(new User(3, "D", "HR", 34) );
-		users.add(new User(4, "X", "IT", 35) );
+		users.add(new User(1, "R", "IT", 32,new Date()) );
+		users.add(new User(2, "A", "HR", 32,new Date()) );
+		users.add(new User(3, "D", "HR", 34,new Date()) );
+		users.add(new User(4, "X", "IT", 35,new Date()) );
 		userRepository.save(users);
 		
 	}

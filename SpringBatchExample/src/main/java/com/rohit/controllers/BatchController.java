@@ -40,7 +40,7 @@ public class BatchController {
 		JobParameters jobParameters = new JobParameters(maps);
 		JobExecution jobExcecution = jobLauncher.run(job, jobParameters);
 		logger.info("Job Execution :"+jobExcecution.getStatus());
-		logger.info("Batch is running...");
+//		logger.info("Batch is running...");
 		while(jobExcecution.isRunning())
 		{
 			logger.info("...");

@@ -1,5 +1,6 @@
 package com.rohit.batch;
 
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -32,6 +33,7 @@ public class Processor implements ItemProcessor<User,User>{
 		String deptCode = user.getProfession();
 		String profession = PROFESSSION_NAMES.get(deptCode);
 		user.setProfession(profession);
+		user.setTime(new Date());
 		logger.info(String.format("Converted from [%s] to [%s]", deptCode,profession));
 		return user;
 	}

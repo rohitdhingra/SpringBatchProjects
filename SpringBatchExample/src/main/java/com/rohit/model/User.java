@@ -1,5 +1,7 @@
 package com.rohit.model;
 
+import java.util.Date;
+
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.Table;
@@ -23,5 +25,6 @@ public class User {
 	private String name;
 	private String profession;
 	private int age;
+	private Date time;
 	
 }
