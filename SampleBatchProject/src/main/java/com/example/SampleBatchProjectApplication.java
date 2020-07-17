@@ -7,7 +7,10 @@ import org.springframework.batch.core.StepExecutionListener;
 import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
+import org.springframework.batch.core.job.builder.FlowBuilder;
+import org.springframework.batch.core.job.flow.Flow;
 import org.springframework.batch.core.job.flow.JobExecutionDecider;
+import org.springframework.batch.core.job.flow.support.SimpleFlow;
 import org.springframework.batch.core.scope.context.ChunkContext;
 import org.springframework.batch.core.step.tasklet.Tasklet;
 import org.springframework.batch.repeat.RepeatStatus;
@@ -25,6 +28,22 @@ public class SampleBatchProjectApplication {
 	
 	@Autowired
 	private StepBuilderFactory stepBuilderFactory;
+	
+	@Bean
+	public Flow deliveryFlow()
+	{
+		return new FlowBuilder<SimpleFlow>("deliveryFlow").start(driveToAddressStep())
+				.on("FAILED").fail()
+			.from(driveToAddressStep())
+				.on("*").to(decider())
+					.on("PRESENT").to(givePackageToCustomerStep())
+					.next(itemDecider())
+						.on("THANKS").to(thankToCustomerStep())
+						.from(itemDecider())
+						.on("REFUND").to(refundToCustomerStep())
+				.from(decider())
+					.on("NOT_PRESENT").to(leaveAtDoorStep()).build();
+	}
 	
 	@Bean
 	public JobExecutionDecider itemDecider()
@@ -147,21 +166,11 @@ public class SampleBatchProjectApplication {
 	}
 	
 	@Bean
-	public Job deliverPackage()
+	public Job deliverPackageJob()
 	{
 		return this.jobBuilderFactory.get("deliverPackageJob")
 				.start(packageItemStep())
-				.next(driveToAddressStep())
-					.on("FAILED").fail()
-				.from(driveToAddressStep())
-					.on("*").to(decider())
-						.on("PRESENT").to(givePackageToCustomerStep())
-						.next(itemDecider())
-							.on("THANKS").to(thankToCustomerStep())
-							.from(itemDecider())
-							.on("REFUND").to(refundToCustomerStep())
-					.from(decider())
-						.on("NOT_PRESENT").to(leaveAtDoorStep())
+				.on("*").to(deliveryFlow())
 				.end()
 				.build();
 	}
@@ -220,6 +229,8 @@ public class SampleBatchProjectApplication {
 			.on("TRIM_REQUIRED").to(removeThornsStep()).next(arrangeFlowersStep())
 		.from(selectFlowersStep())
 			.on("NO_TRIM_REQUIRED").to(arrangeFlowersStep())
+		.from(arrangeFlowersStep())
+			.on("*").to(deliveryFlow()) 
 		.end()
 		.build();
 	}
