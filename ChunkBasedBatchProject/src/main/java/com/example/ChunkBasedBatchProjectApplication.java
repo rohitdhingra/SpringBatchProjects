@@ -11,7 +11,10 @@ import org.springframework.batch.core.configuration.annotation.JobBuilderFactory
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.ItemWriter;
+import org.springframework.batch.item.database.PagingQueryProvider;
 import org.springframework.batch.item.database.builder.JdbcCursorItemReaderBuilder;
+import org.springframework.batch.item.database.builder.JdbcPagingItemReaderBuilder;
+import org.springframework.batch.item.database.support.SqlPagingQueryProviderFactoryBean;
 import org.springframework.batch.item.file.FlatFileItemReader;
 import org.springframework.batch.item.file.mapping.DefaultLineMapper;
 import org.springframework.batch.item.file.transform.DelimitedLineTokenizer;
@@ -36,9 +39,33 @@ public class ChunkBasedBatchProjectApplication {
 	@Autowired
 	public DataSource dataSource;
 	
+	@Bean
+	public PagingQueryProvider queryProvider() throws Exception {
+		SqlPagingQueryProviderFactoryBean factory = new SqlPagingQueryProviderFactoryBean();
+		factory.setSelectClause("select order_id,first_name,last_name,email,cost,item_id,item_name,ship_date");
+		factory.setFromClause("from shipped_order");
+		factory.setSortKey("order_id");
+		factory.setDataSource(dataSource);
+		return factory.getObject();
+	
+	}
 	
 	@Bean
-	public ItemReader<Order> jdbcItemReader() {
+	public ItemReader<Order> jdbcPagingItemReader() throws Exception {
+		return new JdbcPagingItemReaderBuilder<Order>()
+					.dataSource(dataSource)
+					.name("jdbcPagingItemReader")
+					.queryProvider(queryProvider())
+					.rowMapper(new OrderRowMapper())
+					.pageSize(10)
+					.build();
+					
+	}
+	
+	
+
+	@Bean
+	public ItemReader<Order> jdbcCursorItemReader() {
 		return new JdbcCursorItemReaderBuilder<Order>()
 					.dataSource(dataSource)
 					.name("jdbcCursorItemReader")
@@ -67,11 +94,11 @@ public class ChunkBasedBatchProjectApplication {
 	
 	
 	@Bean
-	public Step chunkBasedStep()
+	public Step chunkBasedStep() throws Exception
 	{
 		return this.stepBuilderFactory.get("chunkBasedStep")
-				.<Order,Order>chunk(3)
-				.reader(jdbcItemReader())
+				.<Order,Order>chunk(10)
+				.reader(jdbcPagingItemReader())
 				.writer(new ItemWriter<Order>()
 						{
 
@@ -87,7 +114,7 @@ public class ChunkBasedBatchProjectApplication {
 	
 
 	@Bean
-	public Job job()
+	public Job job() throws Exception
 	{
 		return this.jobBuilderFactory.get("job").start(chunkBasedStep()).build();
 	}
