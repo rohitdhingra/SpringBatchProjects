@@ -9,15 +9,20 @@ import org.springframework.batch.core.configuration.annotation.JobBuilderFactory
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.ItemWriter;
+import org.springframework.batch.item.file.FlatFileItemReader;
+import org.springframework.batch.item.file.mapping.DefaultLineMapper;
+import org.springframework.batch.item.file.transform.DelimitedLineTokenizer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.io.FileSystemResource;
 
 @SpringBootApplication
 @EnableBatchProcessing
 public class ChunkBasedBatchProjectApplication {
 	
+	public static String[] tokens = new String[] {"order_id","first_name","last_name","email","cost","item_id","item_name","ship_date"};
 	@Autowired
 	private JobBuilderFactory jobBuilderFactory;
 	
@@ -25,9 +30,20 @@ public class ChunkBasedBatchProjectApplication {
 	private StepBuilderFactory stepBuilderFactory;
 	
 	@Bean
-	public ItemReader<String> itemReader() {
-		// TODO Auto-generated method stub
-		return new SimpleItemReader();
+	public ItemReader<Order> itemReader() {
+		FlatFileItemReader<Order> itemReader = new FlatFileItemReader<>();
+		itemReader.setLinesToSkip(1);
+		itemReader.setResource(new FileSystemResource("MOCK_DATA.csv"));
+		DefaultLineMapper<Order> lineMapper = new DefaultLineMapper<>();
+		DelimitedLineTokenizer tokenizer = new DelimitedLineTokenizer(",");
+		tokenizer.setNames(tokens);
+		lineMapper.setLineTokenizer(tokenizer);
+		
+		lineMapper.setFieldSetMapper(new OrderFieldSetMapper());
+		
+		itemReader.setLineMapper(lineMapper);
+		return itemReader;
+		
 	}
 	
 	
@@ -35,13 +51,13 @@ public class ChunkBasedBatchProjectApplication {
 	public Step chunkBasedStep()
 	{
 		return this.stepBuilderFactory.get("chunkBasedStep")
-				.<String,String>chunk(3)
+				.<Order,Order>chunk(3)
 				.reader(itemReader())
-				.writer(new ItemWriter<String>()
+				.writer(new ItemWriter<Order>()
 						{
 
 							@Override
-							public void write(List<? extends String> items) throws Exception {
+							public void write(List<? extends Order> items) throws Exception {
 								System.out.println(String.format("Received list of size:%s", items.size()));
 								items.forEach(System.out::println);
 							}
