@@ -120,8 +120,8 @@ public class ChunkBasedBatchProjectApplication {
 	
 	
 	@Bean
-	public ItemWriter<Order> jsonFileItemWriter() {
-		return new JsonFileItemWriterBuilder<Order>()
+	public ItemWriter<TrackedOrder> jsonFileItemWriter() {
+		return new JsonFileItemWriterBuilder<TrackedOrder>()
 				.jsonObjectMarshaller(new JacksonJsonObjectMarshaller<>())
 				.resource(new FileSystemResource("shipped_orders_output.json"))
 				.name("jsonFileItemWriter")
@@ -161,18 +161,24 @@ public class ChunkBasedBatchProjectApplication {
 		itemProcessor.setFilter(true);
 		return itemProcessor;
 	}
+
+	@Bean
+	public ItemProcessor<Order, TrackedOrder> trackedOrderItemProcessor() {
+		return new TrackedOrderItemProcessor();
+	}
 	
 	@Bean
 	public Step chunkBasedStep() throws Exception
 	{
 		return this.stepBuilderFactory.get("chunkBasedStep")
-				.<Order,Order>chunk(10)
+				.<Order,TrackedOrder>chunk(10)
 				.reader(jdbcPagingItemReader())
-				.processor(orderValidatingItemProcessor())
+				.processor(trackedOrderItemProcessor())
 				.writer(jsonFileItemWriter())
 				.build();
 	}
 	
+
 
 
 
