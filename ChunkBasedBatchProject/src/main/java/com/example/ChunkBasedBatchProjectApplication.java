@@ -16,7 +16,10 @@ import org.springframework.batch.item.database.builder.JdbcCursorItemReaderBuild
 import org.springframework.batch.item.database.builder.JdbcPagingItemReaderBuilder;
 import org.springframework.batch.item.database.support.SqlPagingQueryProviderFactoryBean;
 import org.springframework.batch.item.file.FlatFileItemReader;
+import org.springframework.batch.item.file.FlatFileItemWriter;
 import org.springframework.batch.item.file.mapping.DefaultLineMapper;
+import org.springframework.batch.item.file.transform.BeanWrapperFieldExtractor;
+import org.springframework.batch.item.file.transform.DelimitedLineAggregator;
 import org.springframework.batch.item.file.transform.DelimitedLineTokenizer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
@@ -38,6 +41,7 @@ public class ChunkBasedBatchProjectApplication {
 	
 	@Autowired
 	public DataSource dataSource;
+	private String[] names = new String[] {"orderId","firstName","lastName","email","cost","itemId","itemName","shipDate"};
 	
 	@Bean
 	public PagingQueryProvider queryProvider() throws Exception {
@@ -92,6 +96,37 @@ public class ChunkBasedBatchProjectApplication {
 		
 	}
 	
+	@Bean
+	public ItemWriter<Order> sopItemWriter()
+	{
+		return new ItemWriter<Order>()
+		{
+
+			@Override
+			public void write(List<? extends Order> items) throws Exception {
+				System.out.println(String.format("Received list of size:%s", items.size()));
+				items.forEach(System.out::println);
+			}
+	
+		};
+	}
+
+	@Bean
+	public ItemWriter<Order> flatFileItemWriter() {
+		FlatFileItemWriter<Order> flatFileItemWriter = new FlatFileItemWriter<>();
+		flatFileItemWriter.setResource(new FileSystemResource("shipped_orders_output.csv"));
+		
+		DelimitedLineAggregator<Order> agggregator = new DelimitedLineAggregator<>();
+		agggregator.setDelimiter(",");
+		
+		BeanWrapperFieldExtractor<Order> fieldExtractor = new BeanWrapperFieldExtractor<>();
+		fieldExtractor.setNames(names);
+		
+		agggregator.setFieldExtractor(fieldExtractor);
+	
+		flatFileItemWriter.setLineAggregator(agggregator);
+		return flatFileItemWriter;
+	}
 	
 	@Bean
 	public Step chunkBasedStep() throws Exception
@@ -99,19 +134,11 @@ public class ChunkBasedBatchProjectApplication {
 		return this.stepBuilderFactory.get("chunkBasedStep")
 				.<Order,Order>chunk(10)
 				.reader(jdbcPagingItemReader())
-				.writer(new ItemWriter<Order>()
-						{
-
-							@Override
-							public void write(List<? extends Order> items) throws Exception {
-								System.out.println(String.format("Received list of size:%s", items.size()));
-								items.forEach(System.out::println);
-							}
-					
-						})
+				.writer(flatFileItemWriter())
 				.build();
 	}
 	
+
 
 	@Bean
 	public Job job() throws Exception
