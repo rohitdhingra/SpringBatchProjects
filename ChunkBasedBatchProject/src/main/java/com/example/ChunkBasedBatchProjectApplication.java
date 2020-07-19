@@ -12,6 +12,7 @@ import org.springframework.batch.core.configuration.annotation.StepBuilderFactor
 import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.database.PagingQueryProvider;
+import org.springframework.batch.item.database.builder.JdbcBatchItemWriterBuilder;
 import org.springframework.batch.item.database.builder.JdbcCursorItemReaderBuilder;
 import org.springframework.batch.item.database.builder.JdbcPagingItemReaderBuilder;
 import org.springframework.batch.item.database.support.SqlPagingQueryProviderFactoryBean;
@@ -32,6 +33,8 @@ import org.springframework.core.io.FileSystemResource;
 public class ChunkBasedBatchProjectApplication {
 	
 	public static final String ORDER_SQL = "select order_id,first_name,last_name,email,cost,item_id,item_name,ship_date from shipped_order order by order_id";
+	private static final String INSERT_ORDER_SQL = "insert into shipped_order_output(order_id,first_name,last_name,email,cost,item_id,item_name,ship_date) "
+			+ "values(?,?,?,?,?,?,?,?)";
 	public static String[] tokens = new String[] {"order_id","first_name","last_name","email","cost","item_id","item_name","ship_date"};
 	@Autowired
 	private JobBuilderFactory jobBuilderFactory;
@@ -110,6 +113,15 @@ public class ChunkBasedBatchProjectApplication {
 	
 		};
 	}
+	
+	@Bean
+	public ItemWriter<Order> jdbcBatchItemWriter() {
+		return new JdbcBatchItemWriterBuilder<Order>()
+				.dataSource(dataSource)
+				.sql(INSERT_ORDER_SQL)
+				.itemPreparedStatementSetter(new OrderItemPreparedStatementSetter())
+				.build();
+	}
 
 	@Bean
 	public ItemWriter<Order> flatFileItemWriter() {
@@ -134,7 +146,7 @@ public class ChunkBasedBatchProjectApplication {
 		return this.stepBuilderFactory.get("chunkBasedStep")
 				.<Order,Order>chunk(10)
 				.reader(jdbcPagingItemReader())
-				.writer(flatFileItemWriter())
+				.writer(jdbcBatchItemWriter())
 				.build();
 	}
 	
