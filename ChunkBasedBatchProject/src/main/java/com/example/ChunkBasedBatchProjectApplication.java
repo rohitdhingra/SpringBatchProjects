@@ -25,6 +25,7 @@ import org.springframework.batch.item.file.transform.DelimitedLineAggregator;
 import org.springframework.batch.item.file.transform.DelimitedLineTokenizer;
 import org.springframework.batch.item.json.JacksonJsonObjectMarshaller;
 import org.springframework.batch.item.json.builder.JsonFileItemWriterBuilder;
+import org.springframework.batch.item.support.builder.CompositeItemProcessorBuilder;
 import org.springframework.batch.item.validator.BeanValidatingItemProcessor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
@@ -166,6 +167,14 @@ public class ChunkBasedBatchProjectApplication {
 	public ItemProcessor<Order, TrackedOrder> trackedOrderItemProcessor() {
 		return new TrackedOrderItemProcessor();
 	}
+
+	@Bean
+	public ItemProcessor<Order,TrackedOrder> compositeItemProcessor() {
+		return new CompositeItemProcessorBuilder<Order,TrackedOrder>()
+				.delegates(orderValidatingItemProcessor(),trackedOrderItemProcessor())
+				.build();
+	}
+
 	
 	@Bean
 	public Step chunkBasedStep() throws Exception
@@ -173,7 +182,7 @@ public class ChunkBasedBatchProjectApplication {
 		return this.stepBuilderFactory.get("chunkBasedStep")
 				.<Order,TrackedOrder>chunk(10)
 				.reader(jdbcPagingItemReader())
-				.processor(trackedOrderItemProcessor())
+				.processor(compositeItemProcessor())
 				.writer(jsonFileItemWriter())
 				.build();
 	}
