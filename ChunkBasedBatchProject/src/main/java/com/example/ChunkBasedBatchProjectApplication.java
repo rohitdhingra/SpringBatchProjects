@@ -22,6 +22,8 @@ import org.springframework.batch.item.file.mapping.DefaultLineMapper;
 import org.springframework.batch.item.file.transform.BeanWrapperFieldExtractor;
 import org.springframework.batch.item.file.transform.DelimitedLineAggregator;
 import org.springframework.batch.item.file.transform.DelimitedLineTokenizer;
+import org.springframework.batch.item.json.JacksonJsonObjectMarshaller;
+import org.springframework.batch.item.json.builder.JsonFileItemWriterBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -34,7 +36,7 @@ public class ChunkBasedBatchProjectApplication {
 	
 	public static final String ORDER_SQL = "select order_id,first_name,last_name,email,cost,item_id,item_name,ship_date from shipped_order order by order_id";
 	private static final String INSERT_ORDER_SQL = "insert into shipped_order_output(order_id,first_name,last_name,email,cost,item_id,item_name,ship_date) "
-			+ "values(?,?,?,?,?,?,?,?)";
+			+ "values(:orderId,:firstName,:lastName,:email,:cost,:itemId,:itemName,:shipDate)";
 	public static String[] tokens = new String[] {"order_id","first_name","last_name","email","cost","item_id","item_name","ship_date"};
 	@Autowired
 	private JobBuilderFactory jobBuilderFactory;
@@ -114,12 +116,23 @@ public class ChunkBasedBatchProjectApplication {
 		};
 	}
 	
+	
+	@Bean
+	public ItemWriter<Order> jsonFileItemWriter() {
+		return new JsonFileItemWriterBuilder<Order>()
+				.jsonObjectMarshaller(new JacksonJsonObjectMarshaller<>())
+				.resource(new FileSystemResource("shipped_orders_output.json"))
+				.name("jsonFileItemWriter")
+				.build();
+	}
+	
 	@Bean
 	public ItemWriter<Order> jdbcBatchItemWriter() {
 		return new JdbcBatchItemWriterBuilder<Order>()
 				.dataSource(dataSource)
 				.sql(INSERT_ORDER_SQL)
-				.itemPreparedStatementSetter(new OrderItemPreparedStatementSetter())
+//				.itemPreparedStatementSetter(new OrderItemPreparedStatementSetter())
+				.beanMapped()
 				.build();
 	}
 
@@ -146,7 +159,7 @@ public class ChunkBasedBatchProjectApplication {
 		return this.stepBuilderFactory.get("chunkBasedStep")
 				.<Order,Order>chunk(10)
 				.reader(jdbcPagingItemReader())
-				.writer(jdbcBatchItemWriter())
+				.writer(jsonFileItemWriter())
 				.build();
 	}
 	
