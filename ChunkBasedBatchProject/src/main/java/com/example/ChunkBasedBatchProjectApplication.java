@@ -188,6 +188,10 @@ public class ChunkBasedBatchProjectApplication {
 				.<Order,TrackedOrder>chunk(10)
 				.reader(jdbcPagingItemReader())
 				.processor(compositeItemProcessor())
+				.faultTolerant()
+				.skip(OrderProcessingException.class)
+				.skipLimit(5)
+				.listener(new CustomSkipListener())
 				.writer(jsonFileItemWriter())
 				.build();
 	}

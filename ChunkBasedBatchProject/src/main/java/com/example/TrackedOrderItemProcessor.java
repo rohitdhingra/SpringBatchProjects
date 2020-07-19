@@ -8,9 +8,18 @@ public class TrackedOrderItemProcessor implements ItemProcessor<Order, TrackedOr
 
 	@Override
 	public TrackedOrder process(Order item) throws Exception {
+		System.out.println("Processing order with id:"+item.getOrderId());
 		TrackedOrder trackedOrder = new TrackedOrder(item);
-		trackedOrder.setTrackingNumber(UUID.randomUUID().toString());
+		trackedOrder.setTrackingNumber(getTrackingNumber());
 		return trackedOrder;
+	}
+
+	private String getTrackingNumber() throws OrderProcessingException {
+		if(Math.random()<0.03)
+		{
+			throw new OrderProcessingException();
+		}
+		return UUID.randomUUID().toString();
 	}
 
 }
