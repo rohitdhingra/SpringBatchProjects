@@ -169,9 +169,14 @@ public class ChunkBasedBatchProjectApplication {
 	}
 
 	@Bean
+	public ItemProcessor<TrackedOrder, TrackedOrder> freeShippingItemProcessor() {
+		return new FreeShippingItemProcessor();
+	}
+	
+	@Bean
 	public ItemProcessor<Order,TrackedOrder> compositeItemProcessor() {
 		return new CompositeItemProcessorBuilder<Order,TrackedOrder>()
-				.delegates(orderValidatingItemProcessor(),trackedOrderItemProcessor())
+				.delegates(orderValidatingItemProcessor(),trackedOrderItemProcessor(),freeShippingItemProcessor())
 				.build();
 	}
 
