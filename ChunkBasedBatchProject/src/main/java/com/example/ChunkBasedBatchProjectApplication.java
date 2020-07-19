@@ -32,6 +32,8 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.task.TaskExecutor;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 @SpringBootApplication
 @EnableBatchProcessing
@@ -40,6 +42,8 @@ public class ChunkBasedBatchProjectApplication {
 	public static final String ORDER_SQL = "select order_id,first_name,last_name,email,cost,item_id,item_name,ship_date from shipped_order order by order_id";
 	private static final String INSERT_ORDER_SQL = "insert into shipped_order_output(order_id,first_name,last_name,email,cost,item_id,item_name,ship_date) "
 			+ "values(:orderId,:firstName,:lastName,:email,:cost,:itemId,:itemName,:shipDate)";
+	private static final String INSERT_TRACKED_ORDER_SQL = "insert into TRACKED_ORDER(order_id,first_name,last_name,email,cost,item_id,item_name,ship_date,tracking_number,free_shipping) "
+			+ "values(:orderId,:firstName,:lastName,:email,:cost,:itemId,:itemName,:shipDate,:trackingNumber,:freeShipping)";
 	public static String[] tokens = new String[] {"order_id","first_name","last_name","email","cost","item_id","item_name","ship_date"};
 	@Autowired
 	private JobBuilderFactory jobBuilderFactory;
@@ -70,6 +74,7 @@ public class ChunkBasedBatchProjectApplication {
 					.queryProvider(queryProvider())
 					.rowMapper(new OrderRowMapper())
 					.pageSize(10)
+					.saveState(false)
 					.build();
 					
 	}
@@ -138,6 +143,15 @@ public class ChunkBasedBatchProjectApplication {
 				.beanMapped()
 				.build();
 	}
+	
+	@Bean
+	public ItemWriter<TrackedOrder> jdbcBatchTrackedItemWriter() {
+		return new JdbcBatchItemWriterBuilder<TrackedOrder>()
+				.dataSource(dataSource)
+				.sql(INSERT_TRACKED_ORDER_SQL)
+				.beanMapped()
+				.build();
+	}
 
 	@Bean
 	public ItemWriter<Order> flatFileItemWriter() {
@@ -180,6 +194,14 @@ public class ChunkBasedBatchProjectApplication {
 				.build();
 	}
 
+	@Bean
+	public TaskExecutor taskExecutor()
+	{
+		ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+		executor.setCorePoolSize(4);
+		executor.setMaxPoolSize(10);
+		return executor;
+	}
 	
 	@Bean
 	public Step chunkBasedStep() throws Exception
@@ -192,7 +214,8 @@ public class ChunkBasedBatchProjectApplication {
 				.retry(OrderProcessingException.class)
 				.retryLimit(3)
 				.listener(new CustomRetryListener())
-				.writer(jsonFileItemWriter())
+				.writer(jdbcBatchTrackedItemWriter())
+				.taskExecutor(taskExecutor())
 				.build();
 	}
 	
