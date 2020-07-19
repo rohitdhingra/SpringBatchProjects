@@ -9,6 +9,7 @@ import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
+import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.database.PagingQueryProvider;
@@ -24,6 +25,7 @@ import org.springframework.batch.item.file.transform.DelimitedLineAggregator;
 import org.springframework.batch.item.file.transform.DelimitedLineTokenizer;
 import org.springframework.batch.item.json.JacksonJsonObjectMarshaller;
 import org.springframework.batch.item.json.builder.JsonFileItemWriterBuilder;
+import org.springframework.batch.item.validator.BeanValidatingItemProcessor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -154,15 +156,24 @@ public class ChunkBasedBatchProjectApplication {
 	}
 	
 	@Bean
+	public ItemProcessor<Order, Order> orderValidatingItemProcessor() {
+		BeanValidatingItemProcessor<Order> itemProcessor = new BeanValidatingItemProcessor<>();
+		itemProcessor.setFilter(true);
+		return itemProcessor;
+	}
+	
+	@Bean
 	public Step chunkBasedStep() throws Exception
 	{
 		return this.stepBuilderFactory.get("chunkBasedStep")
 				.<Order,Order>chunk(10)
 				.reader(jdbcPagingItemReader())
+				.processor(orderValidatingItemProcessor())
 				.writer(jsonFileItemWriter())
 				.build();
 	}
 	
+
 
 
 	@Bean
